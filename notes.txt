@@ -1,0 +1,55 @@
+things needed for the chip-8 emulator:
+  - Hardware emulation (refer to Hardware specs)
+  - gui interface 
+    lets use raylib! https://www.raylib.com/
+    i always use SDL2 for this type of stuff
+  - roms
+    Cave? (idk that game)
+
+Hardware specifics:
+  Memory:
+    - 4kb memory
+    - first 512 bytes are used by the system 
+      (not games!)
+    - last 256 bytes are used for display refreshes
+    - the lower 96 bytes are used for the call stack,
+      internal use, and some variables
+  
+  Registers:
+    - 16 registers (V0 - VF)
+    - VF is *doubles* as a flag 
+      (sub, add, pixel collison
+    - register I is 12 bits long and is used with many
+      opcodes that involve memory operations 
+
+  Stack:
+    - 2 Timers, both count down until they hit 0
+      on 60 hertz
+    - Delay Timer: used for timing in-game events
+    - Sound Timer: is used for sound effects 
+      (timer != sound is made)
+
+  input:
+  - hex keypad (0-F)
+  - 3 Opcodes are used to detect input:
+    skip op on key press
+    inverse of the above
+    wait for key press
+
+  graphics and sound:
+    - 64x32 disply (i'll probably upscale it by x10)
+    - monochrome color
+    - graphics are drawn by sprites 8-(1-15) pixels
+    - sprite pixels are xord with screen pixels
+      (makes sense)
+    - VF used as collison detetcion on set screen
+      pixels (as mentioned earlier)
+
+  Opcodes:
+    - 35 total opcodes (hexadecimal notation)
+    - big endian
+    
+  unrelated stuff:
+    little endianess on cpus
+    big end. on the network
+    google sprites (definition)
