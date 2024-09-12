@@ -47,6 +47,7 @@ Hardware specifics:
 
   Opcodes:
     - 35 total opcodes (hexadecimal notation)
+    - opcodes are 2 bytes long
     - big endian
     
   unrelated stuff:
