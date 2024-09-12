@@ -1,2 +1,3 @@
 all:
-	cc -o c8 main.c
+	gcc -o c8 main.c -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
+
