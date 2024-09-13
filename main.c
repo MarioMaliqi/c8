@@ -8,6 +8,8 @@
 #define UPSCALE_FACTOR 10
 #define Hz 60
 
+#define VF 15
+
 char memory[4096];
 
 int main() {
@@ -41,11 +43,25 @@ int main() {
   InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "c8");
   SetTargetFPS(60);
 
+  int subroutine_origin;
+  char rs[16];
+
+  // for comparisons
+  char r;
+  // betwen two registers
+  char fr;
+  char sr;
+
+  // for setting a register
+  char val; 
+
+  char last_digit;
+
+
   // loop through opcodes (loop index as pc)
-  for (int pc = 0; pc < rom_len; pc++) {
+  for (int pc = 0; pc < rom_len;)  {
     BeginDrawing();
     ClearBackground(BLACK);
-    EndDrawing();
     // big to little endianess (FORGOT TO MAKE IT UNSIGNED) 
     unsigned short opcode = bswap_16(buffer[pc]);
     printf("%x\n", opcode);
@@ -53,26 +69,116 @@ int main() {
       // nuthin
     }
     else if (opcode == 0xe0) {
-      // clear the screen 
+      ClearBackground(BLACK);
+
     } else if (opcode == 0xee) {
-      // return from subroutine
+      pc = subroutine_origin;
+
     } else if (opcode >= 0x1000 && opcode <= 0x1FFF) {
-      // jump to given address
+      opcode = opcode & 0x0FFF;
+
     } else if (opcode >= 0x2000 && opcode <= 0x2FFF) {
-      // call subroutine at given address
+      subroutine_origin = opcode & 0x0FFF;
+      pc = subroutine_origin;
+
     } else if (opcode >= 0x3000 && opcode <= 0x3FFF) {
-      // skips next instruction if register VX == NN 
+      r = (opcode & 0x0F00) >> 2;
+      cmp_num = opcode & 0x00FF;
+
+      if (rs[r] == cmp_num) {
+        pc += 2;
+        continue;
+      }
+      pc++;
+
     } else if (opcode >= 0x4000 && opcode <= 0x4FFF) {
-      // skips next instruction if register VX != NN 
+      r = (opcode & 0x0F00) >> 2;
+      cmp_num = opcode & 0x00FF;
+
+      if (rs[r] != cmp_num) {
+        pc += 2;
+        continue;
+      }
+      pc++;
+
     } else if (opcode >= 0x5000 && opcode <= 0x5FFF) {
       // skips next instruction if register VX != VY
       // (compairing two registers)
+      fr = rs[(opcode & 0x0F00) >> 2];
+      sr = rs[(opcode & 0x00F0) >> 1];
+
+      if (fr == sr) {
+        pc += 2;
+        continue;
+      }
+      pc++;
+
     } else if (opcode >= 0x6000 && opcode <= 0x6FFF) {
-      // sets given register to given value (V(X) = NN)
+      r = (opcode & 0x0F00) >> 2;
+      val  = (opcode $ 0x00FF);
+      rs[r] = value;
+
     } else if (opcode >= 0x7000 && opcode <= 0x7FFF) {
-      // adds to given register with given value 
-      // (VX += NN)
+      r = (opcode & 0x0F00) >> 2;
+      val  = (opcode $ 0x00FF);
+      rs[r] += value;
+
     } else if (opcode >= 0x8000 && opcode <= 0x8FFF) {
+      last_digit = opcode & 0x000F;
+      fr = (opcode & 0x0F00) >> 2;
+      sr = (opcode & 0x00F0) >> 1;
+
+      switch(last_digit) {
+        case 0x0:
+          rs[fr] = rs[sr];
+          break;
+
+        case 0x1:
+          rs[fr] |= rs[sr];
+          break;
+
+        case 0x2:
+          rs[fr] &= rs[sr];
+          break;
+
+        case 0x3:
+          rs[fr] ^= rs[sr];
+          break;
+
+        case 0x4:
+          rs[fr] += rs[sr];
+          if (rs[fr] + rs[sr] > 255) {
+            rs[VR] = 1;
+            break;
+          } 
+          rs[VR] = 0;
+          break;
+
+        case 0x5:
+          rs[fr] -= rs[sr];
+          if (rs[fr] - rs[sr] < 0) {
+            rs[VR] = 0;
+            break;
+          } 
+          rs[VR] = 1;
+          break;
+
+        case 0x6:
+          rs[VF] = rs[fr] & 0x000F;
+          rs[fr] >>= 1;
+          break;
+
+        case 0x7:
+          // TODO: look through all opcodes with VF and
+          // implement the neccessary functionality
+          rs[fr] = rs[sr] - rs[fr];
+          break;
+
+        case 0xe:
+          rs[VF] = rs[fr] & 0xF000;
+          rs[fr] <<= 1;
+          break;
+      }
       // 0. asigins the value of a register to another
       // 1. logically ors the given registers
       // 2. logically ands the given registers
@@ -110,6 +216,7 @@ int main() {
     }
 
 
+    EndDrawing();
   }
 
   // free stuff
