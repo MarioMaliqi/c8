@@ -2,18 +2,20 @@
 #include <stdlib.h>
 #include <byteswap.h>
 #include "raylib.h"
+#include <time.h>
 
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 320
 #define UPSCALE_FACTOR 10
-#define Hz 60
-
+#define HZ 60
 #define VF 15
+#define SPRITE_WIDTH 8
 
 char memory[4096];
 
 int main() {
-  // load rom
+  srand(time(NULL)); // set random seed based on time
+
   FILE* rom;
 
   rom = fopen("roms/GUESS", "rb");
@@ -23,7 +25,7 @@ int main() {
     return EXIT_FAILURE;
   }
 
-  // allocate space for file
+  // allocate space for file and get rom size
   unsigned short *buffer;
   fseek(rom, 0, SEEK_END);
   int rom_len = ftell(rom);
@@ -43,9 +45,12 @@ int main() {
   InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "c8");
   SetTargetFPS(60);
 
-  int subroutine_origin;
   char rs[16];
+  unsigned short I;
+  unsigned short sound_timer;
+  unsigned short delay_timer;
 
+  int subroutine_origin;
   // for comparisons
   char r;
   // betwen two registers
@@ -55,8 +60,9 @@ int main() {
   // for setting a register
   char val; 
 
+  // for getting the last digits of a number
   char last_digit;
-
+  char ltd;
 
   // loop through opcodes (loop index as pc)
   for (int pc = 0; pc < rom_len;)  {
@@ -179,39 +185,58 @@ int main() {
           rs[fr] <<= 1;
           break;
       }
-      // 0. asigins the value of a register to another
-      // 1. logically ors the given registers
-      // 2. logically ands the given registers
-      // 3. logically xors the given registers
-      // 4. adds the two registers
-      //    if there is an overflow VF is set to 1
-      // 5. same as 4 but subtracting
-      // 6. shifts a register to the right by 1 bit
-      //    and stores the lsb in VF
-      // 7. sets Vx to Vy - Vx 
-      //    VF is set to 0 if there is a underflow
-      //    and vice versa
-      // E. same as 6 but shifted to the left
+
     } else if (opcode >= 0x9000 && opcode <= 0x9FFF) {
-      // checks if two register are NOT the same
+      fr = rs[(opcode & 0x0F00) >> 2];
+      sr = rs[(opcode & 0x00F0) >> 1];
+
+      if (fr == sr) {
+        pc += 2;
+        continue;
+      }
+      pc++;
+
     } else if (opcode >= 0xa000 && opcode <= 0xaFFF) {
-      // sets I to given address
+      val = opcode & 0x0FFF;
+      I = val;
+
     } else if (opcode >= 0xb000 && opcode <= 0xbFFF) {
-      // sets the pc to the given address + V0
+      val = opcode & 0x0FFF;
+      pc = rs[0] + val;
+
     } else if (opcode >= 0xc000 && opcode <= 0xcFFF) {
-      // sets the given register to a random number 
-      // (0-255)
+      r = (opcode & 0x0F00) >> 2;
+      rs[r] = (rand() % 256) & (opcode & 0x00FF);
+
     } else if (opcode >= 0xd000 && opcode <= 0xdFFF) {
-      // draws a sprite with the two given registers
-      // as cordinates and N as the height
-      // (width is always 8)
-      // xor screen pixel with sprite pixel
+      fr = rs[(opcode & 0x0F00) >> 2];
+      sr = rs[(opcode & 0x00F0) >> 1];
+      sprite_height = (opcode & 0x000F);
+
+      DrawRectangle(
+          fr, sr, SPRITE_WIDTH, sprite_height, RAYWHITE
+      );
+      break;
+
     } else if (opcode >= 0xe000 && opcode <= 0xeFFF) {
-      // 9E. skips instruction if key is pressed
-      // A1. skips instruction if key is NOT pressed
+      ltd = opcode & 0x00FF;
+
+      switch (ltd) {
+        case 0x9E:
+          if (GetKeyPressed()) {
+          }
+          break;
+
+        case 0xA1:
+          if (!GetKeyPressed()) {
+          }
+          break;
+      }
+
     } else if (opcode >= 0xf000 && opcode <= 0xfFFF) {
     } else {
-      // TODO FIX: opcodes padded wit fs how
+      // TODO FIX: opcodes padded wit fs how. THIS SHITS FIXED
+      // BABBBYYYYY!!!!
       fprintf(stderr, "ERROR: Opcode not found: %x\n", opcode);
     }
 
