@@ -234,12 +234,43 @@ int main() {
       }
 
     } else if (opcode >= 0xf000 && opcode <= 0xfFFF) {
-    } else {
-      // TODO FIX: opcodes padded wit fs how. THIS SHITS FIXED
-      // BABBBYYYYY!!!!
-      fprintf(stderr, "ERROR: Opcode not found: %x\n", opcode);
-    }
+      ltd = opcode & 0x00FF;
+      r = (opcode & 0x0F00) >> 2;
 
+      switch(ltd) {
+        case 0x7:
+          rs[r] = delay_timer();
+          break;
+
+        case 0xA:
+          break;
+
+        case 0x15:
+          break;
+
+        case 0x18:
+          break;
+
+        case 0x1E:
+          break;
+
+        case 0x29:
+          break;
+
+        case 0x33:
+          break;
+
+        case 0x55:
+          break;
+
+        case 0x65:
+          break;
+      }
+
+    } else {
+      fprintf(stderr, "ERROR: Opcode not found: %x\n", opcode);
+      return EXIT_FAILURE;
+    }
 
     EndDrawing();
   }
