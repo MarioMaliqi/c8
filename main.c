@@ -18,7 +18,7 @@ int main() {
 
   FILE* rom;
 
-  rom = fopen("roms/GUESS", "rb");
+  rom = fopen("roms/PONG", "rb");
 
   if (rom == NULL) {
     fprintf(stderr, "ERROR: ROM could not be loaded");
@@ -51,28 +51,46 @@ int main() {
   unsigned short delay_timer;
 
   int subroutine_origin;
+  bool subroutine_searching = false;
+
   // for comparisons
   char r;
+  
   // betwen two registers
   char fr;
   char sr;
 
   // for setting a register
   char val; 
+  unsigned short cmp_num;
 
   // for getting the last digits of a number
   char last_digit;
-  char ltd;
+  unsigned char ltd;
+
+  // sprite height for drawing sprites
+  char sprite_height;
+
+  // sprite address space
+  unsigned char sprite_addr[1024];
 
   // loop through opcodes (loop index as pc)
   for (int pc = 0; pc < rom_len;)  {
     BeginDrawing();
-    ClearBackground(BLACK);
-    // big to little endianess (FORGOT TO MAKE IT UNSIGNED) 
+
     unsigned short opcode = bswap_16(buffer[pc]);
-    printf("%x\n", opcode);
+    printf("pc: %d, opcode: %x\n", pc, opcode);
+
+    if (subroutine_searching) {
+      if (opcode >= 0x2000 && opcode <= 0x2FFF && opcode & 0x0FFF == subroutine_origin) {
+        printf("subroutine ended at pc: %d and opcode: %x\n", pc, opcode);
+        subroutine_searching = false;
+      }     
+      continue;
+    }
+
     if (opcode == 0x00) {
-      // nuthin
+      // nuthin (used for padding the ROM i guess)
     }
     else if (opcode == 0xe0) {
       ClearBackground(BLACK);
@@ -85,7 +103,8 @@ int main() {
 
     } else if (opcode >= 0x2000 && opcode <= 0x2FFF) {
       subroutine_origin = opcode & 0x0FFF;
-      pc = subroutine_origin;
+      printf("subroutine_origin: %x\n", subroutine_origin);
+      subroutine_searching = true;
 
     } else if (opcode >= 0x3000 && opcode <= 0x3FFF) {
       r = (opcode & 0x0F00) >> 2;
@@ -95,7 +114,6 @@ int main() {
         pc += 2;
         continue;
       }
-      pc++;
 
     } else if (opcode >= 0x4000 && opcode <= 0x4FFF) {
       r = (opcode & 0x0F00) >> 2;
@@ -105,7 +123,6 @@ int main() {
         pc += 2;
         continue;
       }
-      pc++;
 
     } else if (opcode >= 0x5000 && opcode <= 0x5FFF) {
       // skips next instruction if register VX != VY
@@ -117,17 +134,16 @@ int main() {
         pc += 2;
         continue;
       }
-      pc++;
 
     } else if (opcode >= 0x6000 && opcode <= 0x6FFF) {
       r = (opcode & 0x0F00) >> 2;
-      val  = (opcode $ 0x00FF);
-      rs[r] = value;
+      val  = (opcode & 0x00FF);
+      rs[r] = val;
 
     } else if (opcode >= 0x7000 && opcode <= 0x7FFF) {
       r = (opcode & 0x0F00) >> 2;
-      val  = (opcode $ 0x00FF);
-      rs[r] += value;
+      val  = (opcode & 0x00FF);
+      rs[r] += val;
 
     } else if (opcode >= 0x8000 && opcode <= 0x8FFF) {
       last_digit = opcode & 0x000F;
@@ -154,19 +170,19 @@ int main() {
         case 0x4:
           rs[fr] += rs[sr];
           if (rs[fr] + rs[sr] > 255) {
-            rs[VR] = 1;
+            rs[VF] = 1;
             break;
           } 
-          rs[VR] = 0;
+          rs[VF] = 0;
           break;
 
         case 0x5:
           rs[fr] -= rs[sr];
           if (rs[fr] - rs[sr] < 0) {
-            rs[VR] = 0;
+            rs[VF] = 0;
             break;
           } 
-          rs[VR] = 1;
+          rs[VF] = 1;
           break;
 
         case 0x6:
@@ -181,7 +197,7 @@ int main() {
           break;
 
         case 0xe:
-          rs[VF] = rs[fr] & 0xF000;
+          rs[VF] = rs[fr] & (char)0xF000;
           rs[fr] <<= 1;
           break;
       }
@@ -194,7 +210,6 @@ int main() {
         pc += 2;
         continue;
       }
-      pc++;
 
     } else if (opcode >= 0xa000 && opcode <= 0xaFFF) {
       val = opcode & 0x0FFF;
@@ -216,13 +231,12 @@ int main() {
       DrawRectangle(
           fr, sr, SPRITE_WIDTH, sprite_height, RAYWHITE
       );
-      break;
 
     } else if (opcode >= 0xe000 && opcode <= 0xeFFF) {
       ltd = opcode & 0x00FF;
 
       switch (ltd) {
-        case 0x9E:
+        case 0x9E: 
           if (GetKeyPressed()) {
           }
           break;
@@ -239,31 +253,39 @@ int main() {
 
       switch(ltd) {
         case 0x7:
-          rs[r] = delay_timer();
+          rs[r] = delay_timer;
           break;
 
         case 0xA:
+          rs[r] = GetKeyPressed();
           break;
 
         case 0x15:
+          delay_timer = rs[r];
           break;
 
         case 0x18:
+          sound_timer = rs[r];
           break;
 
         case 0x1E:
+          I += rs[r];
           break;
 
         case 0x29:
+          I = sprite_addr[rs[r]];
           break;
 
         case 0x33:
+          I = rs[r];
           break;
 
         case 0x55:
+          I = rs[r];
           break;
 
         case 0x65:
+          I = rs[r];
           break;
       }
 
@@ -272,6 +294,7 @@ int main() {
       return EXIT_FAILURE;
     }
 
+    pc++;
     EndDrawing();
   }
 
